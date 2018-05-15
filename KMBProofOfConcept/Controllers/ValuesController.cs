@@ -8,7 +8,7 @@ namespace KMBProofOfConcept.Controllers
         [HttpPost]
         public string Post([FromBody]string value)
         {
-            return value;
+            return $"You posted: '{value}'";
         }
     }
 }
