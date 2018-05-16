@@ -7,11 +7,11 @@ using Newtonsoft.Json;
 
 namespace KMBProofOfConcept
 {
-    public class RandomMiddleware
+    public class RequestMiddleware
     {
         private readonly RequestDelegate next;
 
-        public RandomMiddleware(RequestDelegate next)
+        public RequestMiddleware(RequestDelegate next)
         {
             this.next = next;
         }
@@ -33,24 +33,8 @@ namespace KMBProofOfConcept
                     Console.WriteLine(inputModel);
                 }
 
-                // Read Response Body
-                using (var buffer = new MemoryStream())
-                {
-                    var original = context.Response.Body;
-                    context.Response.Body = buffer;
-
-                    // Invoke Next Middleware
-                    await next.Invoke(context);
-
-                    buffer.Seek(0, SeekOrigin.Begin);
-                    var output = await new StreamReader(buffer).ReadToEndAsync();
-                    buffer.Seek(0, SeekOrigin.Begin);
-
-                    await buffer.CopyToAsync(original);
-                    context.Response.Body = original;
-
-                    Console.WriteLine(output);
-                }
+                // Invoke Next Middleware
+                await next.Invoke(context);
             }
             catch (Exception ex)
             {

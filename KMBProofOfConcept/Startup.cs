@@ -29,7 +29,8 @@ namespace KMBProofOfConcept
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseMiddleware<RandomMiddleware>();
+            app.UseMiddleware<RequestMiddleware>();
+            app.UseMiddleware<ResponseMiddleware>();
             app.UseMvc();
         }
     }
