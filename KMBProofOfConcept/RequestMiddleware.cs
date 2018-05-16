@@ -6,38 +6,20 @@ using Microsoft.AspNetCore.Http.Internal;
 
 namespace KMBProofOfConcept
 {
-    public class RequestMiddleware
+    public class RequestMiddleware : BaseStreamMiddleware
     {
-        private readonly RequestDelegate next;
+        public RequestMiddleware(RequestDelegate next) : base(next) { }
 
-        public RequestMiddleware(RequestDelegate next)
+        protected override async Task Before(HttpContext context, MemoryStream buffer)
         {
-            this.next = next;
-        }
+            context.Request.EnableRewind(); // !<<<
+            await context.Request.Body.CopyToAsync(buffer); // |-|
 
-        public async Task InvokeAsync(HttpContext context)
-        {
-            try
-            {
-                using (var buffer = new MemoryStream())
-                {
-                    context.Request.EnableRewind(); // !<<<
-                    await context.Request.Body.CopyToAsync(buffer); // |-|
+            buffer.Seek(0, SeekOrigin.Begin); // <-
+            context.Request.Body.Seek(0, SeekOrigin.Begin);  // <-
 
-                    buffer.Seek(0, SeekOrigin.Begin); // <-
-                    context.Request.Body.Seek(0, SeekOrigin.Begin);  // <-
-
-                    var input = await new StreamReader(buffer).ReadToEndAsync(); // o-o
-                    Console.WriteLine($"=> Request Body; '{input}'"); // < )))
-
-                    await next.Invoke(context); // >>>
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-                throw;
-            }
+            var input = await new StreamReader(buffer).ReadToEndAsync(); // o-o
+            Console.WriteLine($"=> Request Body; '{input}'"); // < )))
         }
     }
 }

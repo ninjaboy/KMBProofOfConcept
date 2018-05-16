@@ -5,40 +5,27 @@ using Microsoft.AspNetCore.Http;
 
 namespace KMBProofOfConcept
 {
-    public class ResponseMiddleware
+    public class ResponseMiddleware : BaseStreamMiddleware
     {
-        private readonly RequestDelegate next;
+        private Stream original;
 
-        public ResponseMiddleware(RequestDelegate next)
+        public ResponseMiddleware(RequestDelegate next) : base(next) { }
+
+        protected override async Task Before(HttpContext context, MemoryStream buffer)
         {
-            this.next = next;
+            original = context.Response.Body; // <->
+            context.Response.Body = buffer; // <->
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        protected override async Task After(HttpContext context, MemoryStream buffer)
         {
-            try
-            {
-                using (var buffer = new MemoryStream())
-                {
-                    var original = context.Response.Body; // <->
-                    context.Response.Body = buffer; // <->
+            buffer.Seek(0, SeekOrigin.Begin); // <-
+            var output = await new StreamReader(buffer).ReadToEndAsync(); // o-o
+            Console.WriteLine($"=> Response Body: '{output}'"); // < )))
 
-                    await next.Invoke(context); // >>>
-
-                    buffer.Seek(0, SeekOrigin.Begin); // <-
-                    var output = await new StreamReader(buffer).ReadToEndAsync(); // o-o
-                    Console.WriteLine($"=> Response Body: '{output}'"); // < )))
-
-                    buffer.Seek(0, SeekOrigin.Begin);// <-
-                    await buffer.CopyToAsync(original); // |-|
-                    context.Response.Body = original; // <->
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-                throw;
-            }
+            buffer.Seek(0, SeekOrigin.Begin);// <-
+            await buffer.CopyToAsync(original); // |-|
+            context.Response.Body = original; // <->
         }
     }
 }
