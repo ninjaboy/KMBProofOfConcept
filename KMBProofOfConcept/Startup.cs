@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace KMBProofOfConcept
 {
-
     public class Startup
     {
         public Startup(IConfiguration configuration)

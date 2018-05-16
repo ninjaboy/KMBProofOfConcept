@@ -1,47 +1,36 @@
-﻿using System;
-using System.IO;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-
-namespace KMBProofOfConcept
+﻿namespace KMBProofOfConcept
 {
+    using System;
+    using System.IO;
+    using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.Extensions.Logging;
+
     public class ResponseMiddleware
     {
         private readonly RequestDelegate next;
+        private readonly ILogger<RequestMiddleware> logger;
 
-        public ResponseMiddleware(RequestDelegate next)
+        public ResponseMiddleware(RequestDelegate next, ILogger<RequestMiddleware> logger)
         {
-            this.next = next;
+            this.next = next ?? throw new ArgumentNullException(nameof(next));
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        public async Task Invoke(HttpContext context)
         {
-            try
-            {
-                // Read Response Body
-                using (var buffer = new MemoryStream())
-                {
-                    var original = context.Response.Body;
-                    context.Response.Body = buffer;
+            var bodyStream = context.Response.Body;
 
-                    // Invoke Next Middleware
-                    await next.Invoke(context);
+            var responseBodyStream = new MemoryStream();
+            context.Response.Body = responseBodyStream;
 
-                    buffer.Seek(0, SeekOrigin.Begin);
-                    var output = await new StreamReader(buffer).ReadToEndAsync();
-                    buffer.Seek(0, SeekOrigin.Begin);
+            await next(context);
 
-                    await buffer.CopyToAsync(original);
-                    context.Response.Body = original;
-
-                    Console.WriteLine(output);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-                throw;
-            }
+            responseBodyStream.Seek(0, SeekOrigin.Begin);
+            var responseBody = new StreamReader(responseBodyStream).ReadToEnd();
+            logger.LogInformation($"RESPONSE LOG: {responseBody}");
+            responseBodyStream.Seek(0, SeekOrigin.Begin);
+            await responseBodyStream.CopyToAsync(bodyStream);
         }
     }
 }
