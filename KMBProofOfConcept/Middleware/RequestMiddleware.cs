@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Internal;
 
-namespace KMBProofOfConcept
+namespace KMBProofOfConcept.Middleware
 {
     public class RequestMiddleware : BaseStreamMiddleware
     {

@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace KMBProofOfConcept
+namespace KMBProofOfConcept.Middleware
 {
     public class ResponseMiddleware : BaseStreamMiddleware
     {
