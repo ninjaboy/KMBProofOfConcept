@@ -16,56 +16,46 @@ namespace KMBProofOfConcept
             this.next = next;
         }
 
-        private async Task<RequestInputModel> GetRequestInputs(HttpContext context)
-        {
-            context.Request.EnableRewind();
-            using (var reader = new StreamReader(context.Request.Body))
-            {
-                return new RequestInputModel
-                {
-                    QueryString = context.Request.QueryString.Value,
-                    RequestBody = await reader.ReadToEndAsync()
-                };
-            }
-        }
-
         public async Task InvokeAsync(HttpContext context)
         {
             try
             {
-                var requestInputModel = await GetRequestInputs(context);
-                var inputModel = JsonConvert.SerializeObject(requestInputModel);
-                Console.WriteLine(inputModel);
+                // Read Request Body
+                context.Request.EnableRewind();
+                using (var reader = new StreamReader(context.Request.Body))
+                {
+                    var requestInputModel = new RequestInputModel
+                    {
+                        QueryString = context.Request.QueryString.Value,
+                        RequestBody = await reader.ReadToEndAsync()
+                    };
+                    var inputModel = JsonConvert.SerializeObject(requestInputModel);
+                    Console.WriteLine(inputModel);
+                }
 
-                await next.Invoke(context);
+                // Read Response Body
+                using (var buffer = new MemoryStream())
+                {
+                    var original = context.Response.Body;
+                    context.Response.Body = buffer;
 
-                var output = await GetResponseOutput(context);
-                Console.WriteLine(output);
+                    // Invoke Next Middleware
+                    await next.Invoke(context);
+
+                    buffer.Seek(0, SeekOrigin.Begin);
+                    var output = await new StreamReader(buffer).ReadToEndAsync();
+                    buffer.Seek(0, SeekOrigin.Begin);
+
+                    await buffer.CopyToAsync(original);
+                    context.Response.Body = original;
+
+                    Console.WriteLine(output);
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
                 throw;
-            }
-        }
-
-        private async Task<string> GetResponseOutput(HttpContext context)
-        {
-            using (var buffer = new MemoryStream())
-            {
-                var original = context.Response.Body;
-                context.Response.Body = buffer;
-
-                await next.Invoke(context);
-
-                buffer.Seek(0, SeekOrigin.Begin);
-                var output = await new StreamReader(buffer).ReadToEndAsync();
-                buffer.Seek(0, SeekOrigin.Begin);
-
-                await buffer.CopyToAsync(original);
-                context.Response.Body = original;
-
-                return output;
             }
         }
 
