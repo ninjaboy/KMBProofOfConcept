@@ -1,52 +1,40 @@
-﻿using System;
-using System.IO;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Internal;
-using Newtonsoft.Json;
-
-namespace KMBProofOfConcept
+﻿namespace KMBProofOfConcept
 {
+    using System;
+    using System.IO;
+    using System.Threading.Tasks;
+    using Microsoft.AspNetCore.Http;
+    using Microsoft.AspNetCore.Http.Extensions;
+    using Microsoft.Extensions.Logging;
+
     public class RequestMiddleware
     {
         private readonly RequestDelegate next;
+        private readonly ILogger<RequestMiddleware> logger;
 
-        public RequestMiddleware(RequestDelegate next)
+        public RequestMiddleware(RequestDelegate next, ILogger<RequestMiddleware> logger)
         {
-            this.next = next;
+            this.next = next ?? throw new ArgumentNullException(nameof(next));
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        public async Task Invoke(HttpContext context)
         {
-            try
-            {
-                // Read Request Body
-                context.Request.EnableRewind();
-                using (var reader = new StreamReader(context.Request.Body))
-                {
-                    var requestInputModel = new RequestInputModel
-                    {
-                        QueryString = context.Request.QueryString.Value,
-                        RequestBody = await reader.ReadToEndAsync()
-                    };
-                    var inputModel = JsonConvert.SerializeObject(requestInputModel);
-                    Console.WriteLine(inputModel);
-                }
+            var requestBodyStream = new MemoryStream();
+            var originalRequestBody = context.Request.Body;
 
-                // Invoke Next Middleware
-                await next.Invoke(context);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-                throw;
-            }
-        }
+            await context.Request.Body.CopyToAsync(requestBodyStream);
+            requestBodyStream.Seek(0, SeekOrigin.Begin);
 
-        private class RequestInputModel
-        {
-            public string QueryString { get; set; }
-            public string RequestBody { get; set; }
+            var url = context.Request.GetDisplayUrl();
+            var requestBodyText = new StreamReader(requestBodyStream).ReadToEnd();
+            logger.LogInformation($"REQUEST METHOD: {context.Request.Method}, REQUEST BODY: {requestBodyText}, REQUEST URL: {url}");
+            
+            requestBodyStream.Seek(0, SeekOrigin.Begin);
+            context.Request.Body = requestBodyStream;
+
+            await next(context);
+            context.Request.Body = originalRequestBody;
         }
     }
 }
