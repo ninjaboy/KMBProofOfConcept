@@ -18,23 +18,20 @@ namespace KMBProofOfConcept
         {
             try
             {
-                // Read Response Body
                 using (var buffer = new MemoryStream())
                 {
-                    var original = context.Response.Body;
-                    context.Response.Body = buffer;
+                    var original = context.Response.Body; // <->
+                    context.Response.Body = buffer; // <->
 
-                    // Invoke Next Middleware
-                    await next.Invoke(context);
+                    await next.Invoke(context); // >>>
 
-                    buffer.Seek(0, SeekOrigin.Begin);
-                    var output = await new StreamReader(buffer).ReadToEndAsync();
-                    buffer.Seek(0, SeekOrigin.Begin);
+                    buffer.Seek(0, SeekOrigin.Begin); // <-
+                    var output = await new StreamReader(buffer).ReadToEndAsync(); // o-o
+                    Console.WriteLine($"=> Response Body: '{output}'"); // < )))
 
-                    await buffer.CopyToAsync(original);
-                    context.Response.Body = original;
-
-                    Console.WriteLine(output);
+                    buffer.Seek(0, SeekOrigin.Begin);// <-
+                    await buffer.CopyToAsync(original); // |-|
+                    context.Response.Body = original; // <->
                 }
             }
             catch (Exception ex)
